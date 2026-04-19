@@ -5,35 +5,28 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
 db = SQLAlchemy(app)
 
-class TaxCalculation(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    amount = db.Column(db.Float, nullable=False)
-    tax_rate = db.Column(db.Float, nullable=False)
-    tax_amount = db.Column(db.Float, nullable=False)
+class DiscountCalculator:
+    @staticmethod
+    def calculate_discount(amount, discount_rate):
+        if amount < 0 or discount_rate < 0:
+            raise ValueError('Amount and discount rate must be non-negative.')
+        discount_amount = amount * (discount_rate / 100)
+        return discount_amount
 
-    def __init__(self, amount, tax_rate):
-        self.amount = amount
-        self.tax_rate = tax_rate
-        self.tax_amount = self.calculate_tax()
-
-    def calculate_tax(self):
-        return self.amount * (self.tax_rate / 100)
-
-@app.route('/calculate_tax', methods=['POST'])
-def calculate_tax():
+@app.route('/calculate_discount', methods=['POST'])
+def calculate_discount():
     data = request.get_json()
     amount = data.get('amount')
-    tax_rate = data.get('tax_rate')
+    discount_rate = data.get('discount_rate')
 
-    if amount is None or tax_rate is None:
-        return jsonify({'error': 'Amount and tax rate are required'}), 400
+    if amount is None or discount_rate is None:
+        return jsonify({'error': 'Amount and discount rate are required.'}), 400
 
-    tax_calculation = TaxCalculation(amount, tax_rate)
-    db.session.add(tax_calculation)
-    db.session.commit()
-    return jsonify({'tax_amount': tax_calculation.tax_amount}), 200
+    try:
+        discount_amount = DiscountCalculator.calculate_discount(amount, discount_rate)
+        return jsonify({'discount_amount': discount_amount})
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
     app.run(debug=True)
